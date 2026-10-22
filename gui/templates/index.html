@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cat vs Dog classifier</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <h1>🐱 Cat vs Dog 🐶</h1>
+      <p class="subtitle">
+        Upload a photo and the exported Keras model will tell you which one it is.
+      </p>
+    </header>
+
+    {% if not model_ready %}
+    <section class="panel error-panel" role="alert">
+      <h2>The model could not be loaded</h2>
+      <p class="mono">{{ model_error }}</p>
+      <p class="muted small">
+        Run the export cells in <code>model/training_model.ipynb</code> so that
+        <code>model/exports/model_dogs_vs_cats.keras</code> exists, then restart this server.
+      </p>
+    </section>
+    {% endif %}
+
+    <section class="panel">
+      <form id="upload-form" action="/predict" method="post" enctype="multipart/form-data">
+        <label id="dropzone" class="dropzone" for="file">
+          <input type="file" id="file" name="file" accept="image/*" required
+                 {% if not model_ready %}disabled{% endif %}>
+          <span class="dropzone-icon">⬆️</span>
+          <span class="dropzone-title" id="drop-title">Click to choose an image</span>
+          <span class="dropzone-hint">or drag a photo here — JPEG, PNG, BMP, GIF, WebP</span>
+        </label>
+        <div class="actions">
+          <button type="submit" {% if not model_ready %}disabled{% endif %}>Classify</button>
+          <span id="spinner" class="spinner" hidden aria-hidden="true"></span>
+        </div>
+      </form>
+
+      {% if samples %}
+      <div class="samples">
+        <p class="muted">No photo handy? Try one of these:</p>
+        <div class="sample-grid">
+          {% for sample in samples %}
+          <button type="button" class="sample" data-sample="{{ sample.name }}"
+                  title="{{ sample.stem }}">{{ sample.stem }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </section>
+
+    <section id="result" aria-live="polite"></section>
+
+    <footer class="meta">
+      {% if model_ready %}
+      <span>Model <code>{{ model_name }}</code></span>
+      <span>Input {{ input_size }}</span>
+      <span>Threshold {{ threshold }}</span>
+      {% if metrics.accuracy %}
+      <span>Validation accuracy {{ (metrics.accuracy * 100) | round(2) }}%</span>
+      {% endif %}
+      {% if tensorflow_version %}
+      <span>TensorFlow {{ tensorflow_version }}</span>
+      {% endif %}
+      {% endif %}
+      <span><a href="/docs">API docs</a></span>
+    </footer>
+  </main>
+
+  <script>
+  (function () {
+    const form = document.getElementById("upload-form");
+    const dropzone = document.getElementById("dropzone");
+    const input = document.getElementById("file");
+    const dropTitle = document.getElementById("drop-title");
+    const spinner = document.getElementById("spinner");
+    const result = document.getElementById("result");
+
+    // Progressive enhancement: without JS the form posts normally and shows
+    // the bare fragment; with JS we swap it in without a page reload.
+
+    function setBusy(busy) {
+      spinner.hidden = !busy;
+      form.querySelector("button[type=submit]").disabled = busy;
+    }
+
+    function showError(message) {
+      result.innerHTML =
+        '<section class="card error-card" role="alert">' +
+        '<p class="label">Could not classify that image</p>' +
+        '<p class="mono"></p>' +
+        '<p class="muted small">Try another file — JPEG, PNG, BMP, GIF or WebP.</p>' +
+        "</section>";
+      result.querySelector(".mono").textContent = message;
+    }
+
+    async function render(response) {
+      const html = await response.text();
+      if (!response.ok) {
+        // Parse FastAPI's JSON detail, or fall back to the HTML fragment.
+        let message = html;
+        try { message = JSON.parse(html).detail || html; } catch (e) { /* keep html */ }
+        showError(typeof message === "string" ? message : "Request failed");
+        return;
+      }
+      result.innerHTML = html;
+    }
+
+    async function send(url, options) {
+      setBusy(true);
+      try {
+        await render(await fetch(url, options));
+      } catch (err) {
+        showError("Network error: " + err.message);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    input.addEventListener("change", () => {
+      if (input.files.length) {
+        dropTitle.textContent = input.files[0].name;
+        dropzone.classList.add("has-file");
+      }
+    });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!input.files.length) {
+        showError("Choose an image first.");
+        return;
+      }
+      const body = new FormData();
+      body.append("file", input.files[0]);
+      send("/predict", { method: "POST", body: body });
+    });
+
+    // Drag and drop onto the zone.
+    ["dragenter", "dragover"].forEach((evt) =>
+      dropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        dropzone.classList.add("dragging");
+      })
+    );
+    ["dragleave", "drop"].forEach((evt) =>
+      dropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("dragging");
+      })
+    );
+    dropzone.addEventListener("drop", (e) => {
+      if (!e.dataTransfer.files.length) return;
+      input.files = e.dataTransfer.files;
+      dropTitle.textContent = input.files[0].name;
+      dropzone.classList.add("has-file");
+      form.requestSubmit();
+    });
+
+    // One-click bundled samples.
+    document.querySelectorAll(".sample").forEach((btn) => {
+      btn.addEventListener("click", () =>
+        send("/samples/" + encodeURIComponent(btn.dataset.sample) + "/predict", { method: "POST" })
+      );
+    });
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Exported model artifacts (regenerate by running the notebook's export cells)
+model/exports/
+#model/my_images/
+*.keras
+*.tflite
+saved_model_*/
+variables/
+fingerprint.pb
+*.pb
+
+# Dataset and archives
+dogs-vs-cats/
+PetImages/
+*.zip
+*.tar.gz
+
+# Local scratch output
+gui/_render/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
