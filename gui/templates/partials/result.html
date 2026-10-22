@@ -1,0 +1,34 @@
+{% set is_dog = result.label == "dog" %}
+<section class="card result {{ 'is-dog' if is_dog else 'is-cat' }}">
+  <img class="preview" src="{{ image_data_url }}" alt="Uploaded image: {{ filename }}">
+
+  <div class="verdict">
+    <p class="eyebrow">Prediction</p>
+    <p class="label">{{ '🐶 Dog' if is_dog else '🐱 Cat' }}</p>
+    <p class="confidence">{{ result.confidence_percent }}% confident</p>
+
+    <div class="bars">
+      <div class="bar-row">
+        <span class="bar-name">Cat</span>
+        <div class="bar-track"><div class="bar-fill cat-fill" style="width: {{ result.cat_percent }}%"></div></div>
+        <span class="bar-value">{{ result.cat_percent }}%</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-name">Dog</span>
+        <div class="bar-track"><div class="bar-fill dog-fill" style="width: {{ result.dog_percent }}%"></div></div>
+        <span class="bar-value">{{ result.dog_percent }}%</span>
+      </div>
+    </div>
+
+    <dl class="facts">
+      <div><dt>File</dt><dd class="ellipsis" title="{{ filename }}">{{ filename }}</dd></div>
+      <div><dt>Original size</dt><dd>{{ result.original_size.width }} × {{ result.original_size.height }}</dd></div>
+      <div><dt>Model input</dt><dd>{{ result.width }} × {{ result.height }}</dd></div>
+      <div><dt>Decision threshold</dt><dd>{{ result.threshold }}</dd></div>
+    </dl>
+    <p class="muted small">
+      Scores are the model's probability of each class; the higher one wins.
+      A result close to 50/50 means the model is unsure.
+    </p>
+  </div>
+</section>
