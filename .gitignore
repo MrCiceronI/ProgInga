@@ -10,7 +10,7 @@ env/
 
 # Exported model artifacts (regenerate by running the notebook's export cells)
 model/exports/
-model/my_images/
+#model/my_images/
 *.keras
 *.tflite
 saved_model_*/
